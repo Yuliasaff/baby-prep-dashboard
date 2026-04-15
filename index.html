@@ -30,16 +30,38 @@
   .countdown { font-size: 0.95rem; color: #9a8a7a; }
   .countdown strong { color: #5c4a3a; }
 
-  /* Sync indicator */
+  /* Sync bar */
+  .sync-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
   .sync-indicator {
-    text-align: center;
     font-size: 0.75rem;
     color: #b0a090;
-    margin-bottom: 1rem;
     min-height: 1em;
   }
   .sync-indicator.synced { color: #5a9a70; }
   .sync-indicator.error { color: #c96b55; }
+
+  .share-btn {
+    padding: 0.35rem 0.9rem;
+    border: 1px solid #d9cec3;
+    border-radius: 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    background: white;
+    color: #5c4a3a;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .share-btn:hover { background: #f5f0eb; border-color: #c0b0a0; }
+  .share-btn.copied { background: #5a9a70; color: white; border-color: #5a9a70; }
 
   /* Stats row */
   .stats-row {
@@ -424,7 +446,10 @@
     </div>
   </header>
 
-  <div class="sync-indicator" id="sync-indicator">Connecting...</div>
+  <div class="sync-bar">
+    <div class="sync-indicator" id="sync-indicator">Connecting...</div>
+    <button class="share-btn" id="share-btn" onclick="copyShareLink()">Copy share link</button>
+  </div>
 
   <div class="stats-row">
     <div class="stat">
@@ -704,6 +729,57 @@ function showSync(msg, cls) {
   el.className = 'sync-indicator ' + cls;
 }
 
+// ─── Share link (always works — encodes state in URL) ───
+async function copyShareLink() {
+  const compressed = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  const url = window.location.origin + window.location.pathname + '#data=' + compressed;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const btn = document.getElementById('share-btn');
+  btn.textContent = 'Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy share link'; btn.classList.remove('copied'); }, 2500);
+}
+
+function loadFromUrl() {
+  // Check for cloud sync ID
+  const params = new URLSearchParams(window.location.search);
+  const syncParam = params.get('sync');
+  if (syncParam) {
+    setSyncId(syncParam);
+    window.history.replaceState({}, '', window.location.pathname);
+    return 'cloud';
+  }
+  // Check for encoded state in hash
+  const hash = window.location.hash;
+  if (hash.startsWith('#data=')) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(hash.slice(6)))));
+      if (Array.isArray(decoded)) {
+        data = decoded;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        render();
+        window.history.replaceState({}, '', window.location.pathname);
+        showSync('Loaded shared data!', 'synced');
+        // Also push to cloud for future syncs
+        syncToCloud(data);
+        return 'url';
+      }
+    } catch (e) {
+      console.error('Failed to decode URL state:', e);
+    }
+  }
+  return null;
+}
+
 // ─── Countdown ───
 function updateCountdown() {
   const now = new Date();
@@ -868,15 +944,23 @@ document.getElementById('modal').addEventListener('click', e => {
 
 // ─── Init ───
 updateCountdown();
+
+// Check URL for shared state first
+const urlResult = loadFromUrl();
+
 render();
 
 // Initial cloud sync
 (async () => {
+  if (urlResult === 'url') {
+    // Already loaded from URL, push to cloud
+    return;
+  }
   const syncId = getSyncId();
   if (syncId) {
     await loadFromCloud();
   } else {
-    // First time — push to cloud and show the share URL after
+    // First time — push to cloud
     await syncToCloud(data);
   }
 
