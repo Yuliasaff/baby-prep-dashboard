@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Baby Prep Dashboard</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -472,23 +470,6 @@
 </div>
 
 <script>
-// ─── Firebase setup ───
-// Using a dedicated Firebase project for this dashboard.
-// The database rules allow read/write only with the exact app config.
-const firebaseConfig = {
-  apiKey: "AIzaSyBxOmE3FWKV6L3JCLnVfKT0Gzd_Jxx3dE0",
-  authDomain: "baby-prep-dashboard.firebaseapp.com",
-  databaseURL: "https://baby-prep-dashboard-default-rtdb.firebaseio.com",
-  projectId: "baby-prep-dashboard",
-  storageBucket: "baby-prep-dashboard.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000000000"
-};
-
-// We'll use localStorage as primary with a simple sharing mechanism
-// For real-time sync we use a room-based approach with jsonbin
-const ROOM_KEY = 'baby-prep-room-id';
-
 // ─── Default data ───
 const DEFAULT_DATA = [
   {
