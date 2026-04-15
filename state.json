@@ -29,7 +29,7 @@
         "name": "Pre-register at the hospital",
         "note": "Speeds up admission day-of",
         "link": "",
-        "done": false
+        "done": true
       },
       {
         "id": "med-5",
