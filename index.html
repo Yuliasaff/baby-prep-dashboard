@@ -643,7 +643,10 @@ const STORAGE_KEY = 'baby-prep-data-v2';
 function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
   } catch {}
   return JSON.parse(JSON.stringify(DEFAULT_DATA));
 }
@@ -654,6 +657,7 @@ function saveData(data) {
 
 let data = loadData();
 let uiState = loadUiState();
+let cloudLoaded = false; // Only allow saves after we've loaded from cloud
 
 function loadUiState() {
   try {
@@ -697,6 +701,15 @@ function saveToken() {
 }
 
 async function saveToCloud() {
+  if (!cloudLoaded) {
+    showSync('Loading data first...', '');
+    const loaded = await loadFromCloud();
+    if (!loaded) {
+      showSync('Cannot save — failed to load current data. Try refreshing.', 'error');
+      return;
+    }
+  }
+
   const token = getToken();
   if (!token) {
     openTokenModal();
@@ -772,6 +785,7 @@ async function loadFromCloud() {
       const parsed = JSON.parse(decoded);
       if (Array.isArray(parsed) && parsed.length > 0) {
         data = parsed;
+        cloudLoaded = true;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         render();
         return true;
