@@ -11,13 +11,6 @@
         "done": true
       },
       {
-        "id": "med-2",
-        "name": "Choose a pediatrician",
-        "note": "For the newborn's first check-up",
-        "link": "",
-        "done": false
-      },
-      {
         "id": "med-3",
         "name": "Discuss birth plan with OB",
         "note": "Natural birth after C-section — confirm hospital is on board",
