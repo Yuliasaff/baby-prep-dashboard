@@ -760,10 +760,10 @@ async function saveToCloud() {
 async function loadFromCloud() {
   try {
     const token = getToken();
-    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    const headers = { 'Accept': 'application/vnd.github.v3+json', 'If-None-Match': '' };
     if (token) headers['Authorization'] = 'token ' + token;
 
-    const res = await fetch(FILE_API, { headers });
+    const res = await fetch(FILE_API, { headers, cache: 'no-store' });
     if (!res.ok) return false;
 
     const file = await res.json();
