@@ -197,13 +197,6 @@
     "title": "Breastfeeding / Pumping",
     "tasks": [
       {
-        "id": "feed-1",
-        "name": "Silicon breast pump (Haakaa)",
-        "note": "Manual / passive pump",
-        "link": "https://www.amazon.es/Haakaa-Manual-Silicone-Breastpump-Breastfeeding/dp/B07PSDFMLQ/",
-        "done": false
-      },
-      {
         "id": "feed-2",
         "name": "Electric breast pump",
         "note": "Double pump",
