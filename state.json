@@ -15,35 +15,35 @@
         "name": "Choose a pediatrician",
         "note": "For the newborn's first check-up",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-3",
         "name": "Discuss birth plan with OB",
         "note": "Natural birth after C-section — confirm hospital is on board",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-4",
         "name": "Pre-register at the hospital",
         "note": "Speeds up admission day-of",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-5",
         "name": "Group B Strep test",
         "note": "Usually done around weeks 36-37",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-6",
         "name": "Pack prescriptions & medical docs",
         "note": "Insurance card, ID, any prenatal records",
         "link": "",
-        "done": true
+        "done": false
       }
     ]
   },
@@ -95,7 +95,7 @@
       {
         "id": "gear-1",
         "name": "Car seat",
-        "note": "Part of the stroller",
+        "note": "Already bought",
         "link": "",
         "done": true
       },
@@ -104,14 +104,14 @@
         "name": "Stroller",
         "note": "Light, compatible with car seat",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "gear-3",
         "name": "Crib / bassinet",
         "note": "With fitted sheets, no loose bedding",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "gear-4",
@@ -123,7 +123,7 @@
       {
         "id": "gear-5",
         "name": "Baby clothes (newborn + 0-3 months)",
-        "note": "hats, socks, mittens are left",
+        "note": "Onesies with double zipper, sleepsuits, hats, socks, mittens",
         "link": "",
         "done": false
       },
@@ -139,7 +139,7 @@
         "name": "Swaddles / sleep sacks",
         "note": "",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "gear-8",
@@ -149,8 +149,15 @@
         "done": false
       },
       {
+        "id": "gear-9",
+        "name": "Bottle sterilizer (microwave)",
+        "note": "Dr Brown's",
+        "link": "https://www.amazon.es/Dr-Browns-157077-2-esterilizaci%C3%B3n-microondas/dp/B0035LQNNE/",
+        "done": false
+      },
+      {
         "id": "gear-10",
-        "name": "Pacifiers",
+        "name": "Pacifiers (Bibs)",
         "note": "",
         "link": "https://www.amazon.es/Colour-Paquete-chupetes-redonda-natural/dp/B07FVNMDNF/",
         "done": false
@@ -163,11 +170,25 @@
         "done": false
       },
       {
+        "id": "gear-12",
+        "name": "Baby carrier / sling",
+        "note": "Baby wrap",
+        "link": "https://www.amazon.es/KeaBabies-envolturas-portabeb%C3%A9s-envoltorio-el%C3%A1stico/dp/B075GWFZRV/",
+        "done": false
+      },
+      {
+        "id": "gear-13",
+        "name": "Bouncer chair (BabyBjorn)",
+        "note": "",
+        "link": "https://www.amazon.es/BABYBJ%C3%96RN-Bastidor-Algod%C3%B3n-Acolchado-Antracita/dp/B09B1FN88Z/",
+        "done": false
+      },
+      {
         "id": "gear-14",
         "name": "Baby monitor",
         "note": "",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "gear-15",
@@ -181,6 +202,13 @@
         "name": "Baby nail clipper (Tommee Tippee)",
         "note": "",
         "link": "https://www.amazon.es/Tommee-Tippee-Clippers-para-u%C3%B1as/dp/B00MIXAZVQ/",
+        "done": false
+      },
+      {
+        "id": "gear-17",
+        "name": "Diaper bag / backpack",
+        "note": "",
+        "link": "https://www.amazon.es/RUVALINO-Cambiador-Portachupetes-Impermeable-Multifuncional/dp/B09683YJ9P/",
         "done": false
       },
       {
@@ -343,6 +371,20 @@
         "id": "admin-2",
         "name": "Plan for older child's care during labor",
         "note": "Who will watch them when the time comes?",
+        "link": "",
+        "done": false
+      },
+      {
+        "id": "admin-3",
+        "name": "Prepare birth registration documents",
+        "note": "Research what's needed in your country",
+        "link": "",
+        "done": false
+      },
+      {
+        "id": "admin-4",
+        "name": "Discuss parental leave / time off work",
+        "note": "",
         "link": "",
         "done": false
       },
