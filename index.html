@@ -759,36 +759,23 @@ async function saveToCloud() {
 
 async function loadFromCloud() {
   try {
-    // Try authenticated API first (no rate limit with token), fall back to raw URL
     const token = getToken();
-    let parsed = null;
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    if (token) headers['Authorization'] = 'token ' + token;
 
-    if (token) {
-      const res = await fetch(FILE_API, {
-        headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
-      });
-      if (res.ok) {
-        const file = await res.json();
-        if (file.content) {
-          parsed = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
-        }
+    const res = await fetch(FILE_API, { headers });
+    if (!res.ok) return false;
+
+    const file = await res.json();
+    if (file.content) {
+      const decoded = decodeURIComponent(escape(atob(file.content.replace(/\n/g, ''))));
+      const parsed = JSON.parse(decoded);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        data = parsed;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        render();
+        return true;
       }
-    }
-
-    // Fallback: raw URL (no rate limit, but may be cached ~5 min)
-    if (!parsed) {
-      const rawRes = await fetch(`https://raw.githubusercontent.com/${REPO}/main/state.json?t=${Date.now()}`);
-      if (rawRes.ok) {
-        const text = await rawRes.text();
-        parsed = JSON.parse(text);
-      }
-    }
-
-    if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-      data = parsed;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      render();
-      return true;
     }
   } catch (err) {
     console.error('Load error:', err);
