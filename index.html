@@ -447,8 +447,31 @@
   </header>
 
   <div class="sync-bar">
-    <div class="sync-indicator" id="sync-indicator">Connecting...</div>
-    <button class="share-btn" id="share-btn" onclick="copyShareLink()">Save</button>
+    <div class="sync-indicator" id="sync-indicator"></div>
+    <button class="share-btn" id="save-btn" onclick="saveToCloud()">Save</button>
+  </div>
+
+  <!-- Token setup modal -->
+  <div class="modal-overlay" id="token-modal">
+    <div class="modal">
+      <h3>One-time setup</h3>
+      <p style="font-size:0.82rem;color:#8a7a6a;margin-bottom:0.75rem;line-height:1.5">
+        To save and sync your progress, you need a GitHub token.<br>
+        This takes 30 seconds and you only do it once.
+      </p>
+      <ol style="font-size:0.8rem;color:#6b5a4a;margin:0 0 1rem 1.2rem;line-height:1.8">
+        <li>Go to <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=Baby+Prep+Dashboard" target="_blank" rel="noopener" style="color:#5a8a9a">github.com/settings/tokens</a></li>
+        <li>Set expiration to "No expiration"</li>
+        <li>Check only <strong>public_repo</strong></li>
+        <li>Click "Generate token" and paste it below</li>
+      </ol>
+      <label for="token-input">Token</label>
+      <input type="text" id="token-input" placeholder="ghp_...">
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" onclick="closeTokenModal()">Cancel</button>
+        <button class="modal-btn save" onclick="saveToken()">Connect</button>
+      </div>
+    </div>
   </div>
 
   <div class="stats-row">
@@ -613,7 +636,6 @@ const DEFAULT_DATA = [
 
 // ─── State management via localStorage + cloud sync ───
 const STORAGE_KEY = 'baby-prep-data-v2';
-const SYNC_KEY = 'baby-prep-sync-id';
 
 function loadData() {
   try {
@@ -625,7 +647,6 @@ function loadData() {
 
 function saveData(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  syncToCloud(data);
 }
 
 let data = loadData();
@@ -641,87 +662,15 @@ function saveUiState() {
   localStorage.setItem('baby-prep-ui', JSON.stringify(uiState));
 }
 
-// ─── Cloud sync via jsonblob.com (free, no auth needed) ───
-const BLOB_API = 'https://jsonblob.com/api/jsonBlob';
-let syncTimeout = null;
-let isSyncing = false;
+// ─── GitHub-based cloud sync ───
+const REPO = 'Yuliasaff/baby-prep-dashboard';
+const STATE_FILE = 'state.json';
+const RAW_URL = `https://raw.githubusercontent.com/${REPO}/main/${STATE_FILE}`;
+const API_URL = `https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`;
+const TOKEN_KEY = 'baby-prep-gh-token';
 
-function getSyncId() {
-  const params = new URLSearchParams(window.location.search);
-  const urlId = params.get('sync');
-  if (urlId) {
-    localStorage.setItem(SYNC_KEY, urlId);
-    window.history.replaceState({}, '', window.location.pathname);
-    return urlId;
-  }
-  return localStorage.getItem(SYNC_KEY) || null;
-}
-
-function setSyncId(id) {
-  localStorage.setItem(SYNC_KEY, id);
-}
-
-async function syncToCloud(d) {
-  clearTimeout(syncTimeout);
-  syncTimeout = setTimeout(async () => {
-    if (isSyncing) return;
-    isSyncing = true;
-    try {
-      const syncId = getSyncId();
-      if (syncId) {
-        const res = await fetch(BLOB_API + '/' + syncId, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ data: d, updated: Date.now() })
-        });
-        if (!res.ok) throw new Error('PUT failed: ' + res.status);
-      } else {
-        const res = await fetch(BLOB_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ data: d, updated: Date.now() })
-        });
-        if (!res.ok) throw new Error('POST failed: ' + res.status);
-        // jsonblob returns the ID in the Location header
-        const loc = res.headers.get('Location');
-        if (loc) {
-          const newId = loc.split('/').pop();
-          setSyncId(newId);
-        }
-      }
-      showSync('Synced', 'synced');
-    } catch (err) {
-      console.error('Sync error:', err);
-      showSync('Saved locally (sync failed)', 'error');
-    } finally {
-      isSyncing = false;
-    }
-  }, 600);
-}
-
-async function loadFromCloud() {
-  const syncId = getSyncId();
-  if (!syncId) return false;
-  try {
-    showSync('Syncing...', '');
-    const res = await fetch(BLOB_API + '/' + syncId, {
-      headers: { 'Accept': 'application/json' }
-    });
-    if (!res.ok) return false;
-    const result = await res.json();
-    if (result && result.data) {
-      data = result.data;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      render();
-      showSync('Synced', 'synced');
-      return true;
-    }
-  } catch (err) {
-    console.error('Load error:', err);
-    showSync('Could not sync', 'error');
-  }
-  return false;
-}
+function getToken() { return localStorage.getItem(TOKEN_KEY) || null; }
+function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
 
 function showSync(msg, cls) {
   const el = document.getElementById('sync-indicator');
@@ -729,55 +678,111 @@ function showSync(msg, cls) {
   el.className = 'sync-indicator ' + cls;
 }
 
-// ─── Share link (always works — encodes state in URL) ───
-async function copyShareLink() {
-  const compressed = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  const url = window.location.origin + window.location.pathname + '#data=' + compressed;
-  try {
-    await navigator.clipboard.writeText(url);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = url;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  }
-  const btn = document.getElementById('share-btn');
-  btn.textContent = 'Saved! Link copied';
-  btn.classList.add('copied');
-  setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('copied'); }, 2500);
+function openTokenModal() {
+  document.getElementById('token-modal').classList.add('open');
+  document.getElementById('token-input').focus();
 }
 
-function loadFromUrl() {
-  // Check for cloud sync ID
-  const params = new URLSearchParams(window.location.search);
-  const syncParam = params.get('sync');
-  if (syncParam) {
-    setSyncId(syncParam);
-    window.history.replaceState({}, '', window.location.pathname);
-    return 'cloud';
+function closeTokenModal() {
+  document.getElementById('token-modal').classList.remove('open');
+}
+
+function saveToken() {
+  const token = document.getElementById('token-input').value.trim();
+  if (!token) return;
+  setToken(token);
+  closeTokenModal();
+  saveToCloud();
+}
+
+async function saveToCloud() {
+  const token = getToken();
+  if (!token) {
+    openTokenModal();
+    return;
   }
-  // Check for encoded state in hash
-  const hash = window.location.hash;
-  if (hash.startsWith('#data=')) {
-    try {
-      const decoded = JSON.parse(decodeURIComponent(escape(atob(hash.slice(6)))));
-      if (Array.isArray(decoded)) {
-        data = decoded;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        render();
-        window.history.replaceState({}, '', window.location.pathname);
-        showSync('Loaded shared data!', 'synced');
-        // Also push to cloud for future syncs
-        syncToCloud(data);
-        return 'url';
-      }
-    } catch (e) {
-      console.error('Failed to decode URL state:', e);
+
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Saving...';
+  showSync('', '');
+
+  try {
+    // Get current file SHA (needed for update)
+    const metaRes = await fetch(API_URL, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (metaRes.status === 401 || metaRes.status === 403) {
+      showSync('Token invalid or expired — click Save to re-enter', 'error');
+      localStorage.removeItem(TOKEN_KEY);
+      btn.textContent = 'Save';
+      return;
     }
+
+    let sha = null;
+    if (metaRes.ok) {
+      const meta = await metaRes.json();
+      sha = meta.sha;
+    }
+
+    // Write state
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+    const body = { message: 'Update checklist', content };
+    if (sha) body.sha = sha;
+
+    const writeRes = await fetch(API_URL, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (writeRes.ok) {
+      btn.textContent = 'Saved!';
+      btn.classList.add('copied');
+      showSync('Synced to cloud', 'synced');
+      setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('copied'); }, 2000);
+    } else {
+      const err = await writeRes.json();
+      console.error('Save failed:', err);
+      showSync('Save failed — try again', 'error');
+      btn.textContent = 'Save';
+    }
+  } catch (err) {
+    console.error('Save error:', err);
+    showSync('Save failed — check your connection', 'error');
+    btn.textContent = 'Save';
   }
-  return null;
+}
+
+async function loadFromCloud() {
+  try {
+    showSync('Loading...', '');
+    // Add cache-busting param
+    const res = await fetch(RAW_URL + '?t=' + Date.now());
+    if (!res.ok) {
+      if (res.status === 404) {
+        showSync('', '');
+        return false;
+      }
+      throw new Error('Load failed: ' + res.status);
+    }
+    const text = await res.text();
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      data = parsed;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      render();
+      showSync('Loaded from cloud', 'synced');
+      return true;
+    }
+  } catch (err) {
+    console.error('Load error:', err);
+  }
+  showSync('', '');
+  return false;
 }
 
 // ─── Countdown ───
@@ -942,48 +947,35 @@ document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
 
+document.getElementById('token-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('token-modal')) closeTokenModal();
+});
+
+document.getElementById('token-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveToken();
+});
+
 // ─── Init ───
 updateCountdown();
-
-// Check URL for shared state first
-const urlResult = loadFromUrl();
-
 render();
 
-// Initial cloud sync
+// Load from cloud on page load
 (async () => {
-  if (urlResult === 'url') {
-    // Already loaded from URL, push to cloud
-    return;
-  }
-  const syncId = getSyncId();
-  if (syncId) {
-    await loadFromCloud();
-  } else {
-    // First time — push to cloud
-    await syncToCloud(data);
-  }
+  await loadFromCloud();
 
-  // Poll for updates every 30 seconds
+  // Auto-refresh from cloud every 60 seconds
   setInterval(async () => {
-    if (isSyncing) return;
-    const id = getSyncId();
-    if (id) {
-      try {
-        const res = await fetch(BLOB_API + '/' + id, {
-          headers: { 'Accept': 'application/json' }
-        });
-        if (res.ok) {
-          const result = await res.json();
-          if (result && result.data) {
-            data = result.data;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            render();
-            showSync('Synced', 'synced');
-          }
+    try {
+      const res = await fetch(RAW_URL + '?t=' + Date.now());
+      if (res.ok) {
+        const parsed = JSON.parse(await res.text());
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          data = parsed;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          render();
         }
-      } catch {}
-    }
+      }
+    } catch {}
   }, 30000);
 })();
 </script>
