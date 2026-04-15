@@ -15,25 +15,25 @@
         "name": "Choose a pediatrician",
         "note": "For the newborn's first check-up",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-3",
         "name": "Discuss birth plan with OB",
         "note": "Natural birth after C-section — confirm hospital is on board",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-4",
         "name": "Pre-register at the hospital",
         "note": "Speeds up admission day-of",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-5",
-        "name": "Group B Strep test",
+        "name": "Group B Strep test (GBS)",
         "note": "Usually done around weeks 36-37",
         "link": "",
         "done": false
