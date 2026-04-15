@@ -43,7 +43,7 @@
         "name": "Pack prescriptions & medical docs",
         "note": "Insurance card, ID, any prenatal records",
         "link": "",
-        "done": false
+        "done": true
       }
     ]
   },
