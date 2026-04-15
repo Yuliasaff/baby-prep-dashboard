@@ -616,12 +616,12 @@ function saveUiState() {
   localStorage.setItem('baby-prep-ui', JSON.stringify(uiState));
 }
 
-// ─── Cloud sync via JSONBin (free, no auth needed) ───
-const JSONBIN_API = 'https://api.jsonbin.io/v3/b';
+// ─── Cloud sync via jsonblob.com (free, no auth needed) ───
+const BLOB_API = 'https://jsonblob.com/api/jsonBlob';
 let syncTimeout = null;
+let isSyncing = false;
 
 function getSyncId() {
-  // Check URL first
   const params = new URLSearchParams(window.location.search);
   const urlId = params.get('sync');
   if (urlId) {
@@ -636,33 +636,42 @@ function setSyncId(id) {
   localStorage.setItem(SYNC_KEY, id);
 }
 
-async function syncToCloud(data) {
+async function syncToCloud(d) {
   clearTimeout(syncTimeout);
   syncTimeout = setTimeout(async () => {
+    if (isSyncing) return;
+    isSyncing = true;
     try {
       const syncId = getSyncId();
       if (syncId) {
-        await fetch(JSONBIN_API + '/' + syncId, {
+        const res = await fetch(BLOB_API + '/' + syncId, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data, updated: Date.now() })
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ data: d, updated: Date.now() })
         });
+        if (!res.ok) throw new Error('PUT failed: ' + res.status);
       } else {
-        const res = await fetch(JSONBIN_API, {
+        const res = await fetch(BLOB_API, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data, updated: Date.now() })
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ data: d, updated: Date.now() })
         });
-        if (res.ok) {
-          const result = await res.json();
-          setSyncId(result.metadata.id);
+        if (!res.ok) throw new Error('POST failed: ' + res.status);
+        // jsonblob returns the ID in the Location header
+        const loc = res.headers.get('Location');
+        if (loc) {
+          const newId = loc.split('/').pop();
+          setSyncId(newId);
         }
       }
-      showSync('Saved', 'synced');
-    } catch {
-      showSync('Saved locally', '');
+      showSync('Synced', 'synced');
+    } catch (err) {
+      console.error('Sync error:', err);
+      showSync('Saved locally (sync failed)', 'error');
+    } finally {
+      isSyncing = false;
     }
-  }, 800);
+  }, 600);
 }
 
 async function loadFromCloud() {
@@ -670,24 +679,23 @@ async function loadFromCloud() {
   if (!syncId) return false;
   try {
     showSync('Syncing...', '');
-    const res = await fetch(JSONBIN_API + '/' + syncId + '/latest');
+    const res = await fetch(BLOB_API + '/' + syncId, {
+      headers: { 'Accept': 'application/json' }
+    });
     if (!res.ok) return false;
     const result = await res.json();
-    if (result.record && result.record.data) {
-      data = result.record.data;
+    if (result && result.data) {
+      data = result.data;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       render();
       showSync('Synced', 'synced');
       return true;
     }
-  } catch {}
+  } catch (err) {
+    console.error('Load error:', err);
+    showSync('Could not sync', 'error');
+  }
   return false;
-}
-
-function getShareUrl() {
-  const syncId = getSyncId();
-  if (!syncId) return null;
-  return window.location.origin + window.location.pathname + '?sync=' + syncId;
 }
 
 function showSync(msg, cls) {
@@ -868,23 +876,26 @@ render();
   if (syncId) {
     await loadFromCloud();
   } else {
-    // First time — push to cloud
-    syncToCloud(data);
+    // First time — push to cloud and show the share URL after
+    await syncToCloud(data);
   }
 
   // Poll for updates every 30 seconds
   setInterval(async () => {
+    if (isSyncing) return;
     const id = getSyncId();
     if (id) {
       try {
-        const res = await fetch(JSONBIN_API + '/' + id + '/latest');
+        const res = await fetch(BLOB_API + '/' + id, {
+          headers: { 'Accept': 'application/json' }
+        });
         if (res.ok) {
           const result = await res.json();
-          if (result.record && result.record.data) {
-            const remoteUpdated = result.record.updated || 0;
-            data = result.record.data;
+          if (result && result.data) {
+            data = result.data;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             render();
+            showSync('Synced', 'synced');
           }
         }
       } catch {}
