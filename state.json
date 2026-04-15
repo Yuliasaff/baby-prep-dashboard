@@ -8,7 +8,7 @@
         "name": "Schedule remaining OB check-ups",
         "note": "Weekly visits usually start around week 36",
         "link": "",
-        "done": true
+        "done": false
       },
       {
         "id": "med-2",
