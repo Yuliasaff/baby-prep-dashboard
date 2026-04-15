@@ -707,48 +707,48 @@ async function saveToCloud() {
   btn.textContent = 'Saving...';
 
   try {
-    // Get current SHA (needed to update a file)
-    const metaRes = await fetch(FILE_API, {
-      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
-    });
-
-    if (metaRes.status === 401 || metaRes.status === 403) {
-      showSync('Token invalid — click Save to re-enter', 'error');
-      localStorage.removeItem(TOKEN_KEY);
-      btn.textContent = 'Save';
-      return;
-    }
-
-    let sha = null;
-    if (metaRes.ok) {
-      sha = (await metaRes.json()).sha;
-    }
-
-    // Write
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-    const body = { message: 'Save checklist', content };
-    if (sha) body.sha = sha;
+    const headers = {
+      'Authorization': 'token ' + token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    };
 
-    const res = await fetch(FILE_API, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'token ' + token,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
+    // Retry up to 3 times (handles SHA conflicts from concurrent saves)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const metaRes = await fetch(FILE_API, { headers });
+      if (metaRes.status === 401 || metaRes.status === 403) {
+        showSync('Token invalid — click Save to re-enter', 'error');
+        localStorage.removeItem(TOKEN_KEY);
+        btn.textContent = 'Save';
+        return;
+      }
 
-    if (res.ok) {
-      btn.textContent = 'Saved!';
-      btn.classList.add('copied');
-      showSync('Saved', 'synced');
-      setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('copied'); }, 2000);
-    } else {
-      const err = await res.json().catch(() => ({}));
-      console.error('Save failed:', res.status, err);
+      let sha = null;
+      if (metaRes.ok) sha = (await metaRes.json()).sha;
+
+      const body = { message: 'Save checklist', content };
+      if (sha) body.sha = sha;
+
+      const res = await fetch(FILE_API, { method: 'PUT', headers, body: JSON.stringify(body) });
+
+      if (res.ok) {
+        btn.textContent = 'Saved!';
+        btn.classList.add('copied');
+        showSync('Saved', 'synced');
+        setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('copied'); }, 2000);
+        return;
+      }
+
+      if (res.status === 409 && attempt < 2) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+
+      console.error('Save failed:', res.status, await res.json().catch(() => ({})));
       showSync('Save failed — try again', 'error');
       btn.textContent = 'Save';
+      return;
     }
   } catch (err) {
     console.error('Save error:', err);
