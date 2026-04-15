@@ -665,9 +665,9 @@ function saveUiState() {
   localStorage.setItem('baby-prep-ui', JSON.stringify(uiState));
 }
 
-// ─── GitHub Gist cloud sync (no setup needed for reading) ───
-const GIST_ID = '139891d33e1906bed427051adc117e74';
-const GIST_API = `https://api.github.com/gists/${GIST_ID}`;
+// ─── GitHub repo cloud sync ───
+const REPO = 'Yuliasaff/baby-prep-dashboard';
+const FILE_API = `https://api.github.com/repos/${REPO}/contents/state.json`;
 const TOKEN_KEY = 'baby-prep-gh-token';
 
 function getToken() { return localStorage.getItem(TOKEN_KEY) || null; }
@@ -707,23 +707,37 @@ async function saveToCloud() {
   btn.textContent = 'Saving...';
 
   try {
-    const content = JSON.stringify(data, null, 2);
-    const res = await fetch(GIST_API, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': 'token ' + token,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ files: { 'state.json': { content } } })
+    // Get current SHA (needed to update a file)
+    const metaRes = await fetch(FILE_API, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
     });
 
-    if (res.status === 401 || res.status === 403) {
+    if (metaRes.status === 401 || metaRes.status === 403) {
       showSync('Token invalid — click Save to re-enter', 'error');
       localStorage.removeItem(TOKEN_KEY);
       btn.textContent = 'Save';
       return;
     }
+
+    let sha = null;
+    if (metaRes.ok) {
+      sha = (await metaRes.json()).sha;
+    }
+
+    // Write
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+    const body = { message: 'Save checklist', content };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(FILE_API, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
 
     if (res.ok) {
       btn.textContent = 'Saved!';
@@ -731,7 +745,8 @@ async function saveToCloud() {
       showSync('Saved', 'synced');
       setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('copied'); }, 2000);
     } else {
-      console.error('Save failed:', res.status);
+      const err = await res.json().catch(() => ({}));
+      console.error('Save failed:', res.status, err);
       showSync('Save failed — try again', 'error');
       btn.textContent = 'Save';
     }
@@ -745,19 +760,19 @@ async function saveToCloud() {
 async function loadFromCloud() {
   try {
     showSync('Loading...', '');
-    const res = await fetch(GIST_API, {
+    const res = await fetch(FILE_API, {
       headers: { 'Accept': 'application/vnd.github.v3+json' }
     });
     if (!res.ok) throw new Error('Load failed: ' + res.status);
-    const gist = await res.json();
-    const content = gist.files?.['state.json']?.content;
-    if (content) {
-      const parsed = JSON.parse(content);
+    const file = await res.json();
+    if (file.content) {
+      const decoded = decodeURIComponent(escape(atob(file.content.replace(/\n/g, ''))));
+      const parsed = JSON.parse(decoded);
       if (Array.isArray(parsed) && parsed.length > 0) {
         data = parsed;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         render();
-        showSync('Loaded', 'synced');
+        showSync('', '');
         return true;
       }
     }
@@ -949,14 +964,14 @@ render();
   // Auto-refresh from cloud every 60 seconds
   setInterval(async () => {
     try {
-      const res = await fetch(GIST_API, {
+      const res = await fetch(FILE_API, {
         headers: { 'Accept': 'application/vnd.github.v3+json' }
       });
       if (res.ok) {
-        const gist = await res.json();
-        const content = gist.files?.['state.json']?.content;
-        if (content) {
-          const parsed = JSON.parse(content);
+        const file = await res.json();
+        if (file.content) {
+          const decoded = decodeURIComponent(escape(atob(file.content.replace(/\n/g, ''))));
+          const parsed = JSON.parse(decoded);
           if (Array.isArray(parsed) && parsed.length > 0) {
             data = parsed;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
