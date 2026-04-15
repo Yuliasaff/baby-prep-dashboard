@@ -771,28 +771,46 @@ async function saveToCloud() {
 }
 
 async function loadFromCloud() {
+  let parsed = null;
+
+  // Method 1: GitHub API (authenticated = no rate limit; unauthenticated = 60/hour)
   try {
     const token = getToken();
     const headers = { 'Accept': 'application/vnd.github.v3+json', 'If-None-Match': '' };
     if (token) headers['Authorization'] = 'token ' + token;
 
     const res = await fetch(FILE_API, { headers, cache: 'no-store' });
-    if (!res.ok) return false;
-
-    const file = await res.json();
-    if (file.content) {
-      const decoded = decodeURIComponent(escape(atob(file.content.replace(/\n/g, ''))));
-      const parsed = JSON.parse(decoded);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        data = parsed;
-        cloudLoaded = true;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        render();
-        return true;
+    if (res.ok) {
+      const file = await res.json();
+      if (file.content) {
+        parsed = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
       }
     }
   } catch (err) {
-    console.error('Load error:', err);
+    console.error('API load error:', err);
+  }
+
+  // Method 2: Fallback to raw URL (no rate limit, may be cached up to 5 min)
+  if (!parsed) {
+    try {
+      const rawRes = await fetch(
+        `https://raw.githubusercontent.com/${REPO}/main/state.json`,
+        { cache: 'no-store' }
+      );
+      if (rawRes.ok) {
+        parsed = JSON.parse(await rawRes.text());
+      }
+    } catch (err) {
+      console.error('Raw load error:', err);
+    }
+  }
+
+  if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+    data = parsed;
+    cloudLoaded = true;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    render();
+    return true;
   }
   return false;
 }
