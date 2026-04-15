@@ -189,6 +189,13 @@
         "note": "",
         "link": "https://www.amazon.es/Nosefrida-beb%C3%A9-aspirador-nasal-filtros/dp/B00RP0GHBO/",
         "done": false
+      },
+      {
+        "id": "custom-1776281893667",
+        "name": "Baby detergent",
+        "note": "Fragrance free",
+        "link": "",
+        "done": false
       }
     ]
   },
@@ -268,13 +275,6 @@
         "id": "home-3",
         "name": "Wash baby clothes & bedding",
         "note": "Use fragrance-free detergent",
-        "link": "",
-        "done": false
-      },
-      {
-        "id": "home-4",
-        "name": "Stock up on household essentials",
-        "note": "Toilet paper, cleaning supplies, laundry detergent",
         "link": "",
         "done": false
       }
