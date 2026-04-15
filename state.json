@@ -15,7 +15,7 @@
         "name": "Choose a pediatrician",
         "note": "For the newborn's first check-up",
         "link": "",
-        "done": false
+        "done": true
       },
       {
         "id": "med-3",
