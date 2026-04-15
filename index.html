@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Baby Prep Dashboard</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -662,11 +665,9 @@ function saveUiState() {
   localStorage.setItem('baby-prep-ui', JSON.stringify(uiState));
 }
 
-// ─── GitHub-based cloud sync ───
-const REPO = 'Yuliasaff/baby-prep-dashboard';
-const STATE_FILE = 'state.json';
-const RAW_URL = `https://raw.githubusercontent.com/${REPO}/main/${STATE_FILE}`;
-const API_URL = `https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`;
+// ─── GitHub Gist cloud sync (no setup needed for reading) ───
+const GIST_ID = '139891d33e1906bed427051adc117e74';
+const GIST_API = `https://api.github.com/gists/${GIST_ID}`;
 const TOKEN_KEY = 'baby-prep-gh-token';
 
 function getToken() { return localStorage.getItem(TOKEN_KEY) || null; }
@@ -704,55 +705,39 @@ async function saveToCloud() {
 
   const btn = document.getElementById('save-btn');
   btn.textContent = 'Saving...';
-  showSync('', '');
 
   try {
-    // Get current file SHA (needed for update)
-    const metaRes = await fetch(API_URL, {
-      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
-    });
-    if (metaRes.status === 401 || metaRes.status === 403) {
-      showSync('Token invalid or expired — click Save to re-enter', 'error');
-      localStorage.removeItem(TOKEN_KEY);
-      btn.textContent = 'Save';
-      return;
-    }
-
-    let sha = null;
-    if (metaRes.ok) {
-      const meta = await metaRes.json();
-      sha = meta.sha;
-    }
-
-    // Write state
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-    const body = { message: 'Update checklist', content };
-    if (sha) body.sha = sha;
-
-    const writeRes = await fetch(API_URL, {
-      method: 'PUT',
+    const content = JSON.stringify(data, null, 2);
+    const res = await fetch(GIST_API, {
+      method: 'PATCH',
       headers: {
         'Authorization': 'token ' + token,
         'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ files: { 'state.json': { content } } })
     });
 
-    if (writeRes.ok) {
+    if (res.status === 401 || res.status === 403) {
+      showSync('Token invalid — click Save to re-enter', 'error');
+      localStorage.removeItem(TOKEN_KEY);
+      btn.textContent = 'Save';
+      return;
+    }
+
+    if (res.ok) {
       btn.textContent = 'Saved!';
       btn.classList.add('copied');
-      showSync('Synced to cloud', 'synced');
+      showSync('Saved', 'synced');
       setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('copied'); }, 2000);
     } else {
-      const err = await writeRes.json();
-      console.error('Save failed:', err);
+      console.error('Save failed:', res.status);
       showSync('Save failed — try again', 'error');
       btn.textContent = 'Save';
     }
   } catch (err) {
     console.error('Save error:', err);
-    showSync('Save failed — check your connection', 'error');
+    showSync('Save failed — check connection', 'error');
     btn.textContent = 'Save';
   }
 }
@@ -760,23 +745,21 @@ async function saveToCloud() {
 async function loadFromCloud() {
   try {
     showSync('Loading...', '');
-    // Add cache-busting param
-    const res = await fetch(RAW_URL + '?t=' + Date.now());
-    if (!res.ok) {
-      if (res.status === 404) {
-        showSync('', '');
-        return false;
+    const res = await fetch(GIST_API, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) throw new Error('Load failed: ' + res.status);
+    const gist = await res.json();
+    const content = gist.files?.['state.json']?.content;
+    if (content) {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        data = parsed;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        render();
+        showSync('Loaded', 'synced');
+        return true;
       }
-      throw new Error('Load failed: ' + res.status);
-    }
-    const text = await res.text();
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      data = parsed;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      render();
-      showSync('Loaded from cloud', 'synced');
-      return true;
     }
   } catch (err) {
     console.error('Load error:', err);
@@ -966,13 +949,19 @@ render();
   // Auto-refresh from cloud every 60 seconds
   setInterval(async () => {
     try {
-      const res = await fetch(RAW_URL + '?t=' + Date.now());
+      const res = await fetch(GIST_API, {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      });
       if (res.ok) {
-        const parsed = JSON.parse(await res.text());
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          data = parsed;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          render();
+        const gist = await res.json();
+        const content = gist.files?.['state.json']?.content;
+        if (content) {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            data = parsed;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            render();
+          }
         }
       }
     } catch {}
