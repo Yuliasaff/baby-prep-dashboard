@@ -337,7 +337,7 @@
         "name": "Plan for older child's care during labor",
         "note": "Who will watch them when the time comes?",
         "link": "",
-        "done": false
+        "done": true
       },
       {
         "id": "admin-5",
