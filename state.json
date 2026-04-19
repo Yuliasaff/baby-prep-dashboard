@@ -276,14 +276,14 @@
         "name": "Buy tall cabinet with pull out shelves",
         "note": "",
         "link": "",
-        "done": false
+        "done": true
       },
       {
         "id": "custom-1776282904695",
         "name": "Sell the big one we have right now",
         "note": "",
         "link": "",
-        "done": false
+        "done": true
       }
     ]
   },
