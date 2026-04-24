@@ -18,13 +18,6 @@
         "done": false
       },
       {
-        "id": "med-4",
-        "name": "Pre-register at the hospital",
-        "note": "Speeds up admission day-of",
-        "link": "",
-        "done": false
-      },
-      {
         "id": "med-5",
         "name": "Group B Strep test (GBS)",
         "note": "Usually done around weeks 36-37",
